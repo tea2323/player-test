@@ -3,4 +3,3 @@
   to = "https://api.mightpulse.com/v1/:splat"
   status = 200
   force = true
-  headers = { X-Api-Key = "kss_5Zy1y70cJ2fx8h4ze-5gDSwUElbIzB0egRVWBF--6Qs" }
