@@ -518,12 +518,17 @@
     document.getElementById("toast").style.display = "none";
 
     try {
-      const url = `${BASE_URL}/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
-      const res = await fetch(url, {
-        method: "GET",
+      const targetUrl = `https://api.mightpulse.com/v1/players/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
+      // On localhost with proxy.py use local proxy, otherwise route through public CORS proxy
+      const fetchUrl = IS_LOCAL_PROXY
+        ? `${LOCAL_PROXY_URL}/${encodeURIComponent(playerId)}?include=${INCLUDES}`
+        : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
+      const res = await fetch(fetchUrl, {
+        method: 'GET',
         headers: {
-          "X-Api-Key": apiKey,
-          "Accept": "application/json"
+          'X-Api-Key': apiKey,
+          'Content-Type': 'application/json'
         }
       });
 
