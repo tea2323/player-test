@@ -146,18 +146,22 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Toast ───────────────────────────────────────────────── */
+    /* ── Toast & Error Alert ─────────────────────────────────── */
     #toast {
       display: none;
-      background: var(--danger);
-      color: #fff;
-      border-radius: 6px;
-      padding: .55rem 1rem;
-      font-size: .85rem;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--danger);
+      color: #ff7b72;
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-size: .88rem;
       max-width: 700px;
-      margin: 0 auto 1.2rem;
+      margin: 0 auto 1.5rem;
+      line-height: 1.5;
     }
-    #toast.warn { background: var(--warn); }
+    #toast.warn { background: rgba(210, 153, 34, 0.15); border-color: var(--warn); color: #e3b341; }
+    #toast strong { display: block; margin-bottom: 0.35rem; color: #fff; }
+    #toast a { color: var(--accent); text-decoration: underline; }
 
     /* ── Results container ───────────────────────────────────── */
     #results { max-width: 700px; margin: 0 auto; display: none; }
@@ -423,9 +427,15 @@
 
 <script>
   /* ── Constants ─────────────────────────────────────────────── */
-  // Requests go to the local proxy (/api/*) which forwards them server-side,
-  // bypassing the MightPulse API's lack of CORS headers.
-  const BASE_URL   = "/api/players";
+  // Direct MightPulse API endpoint
+  const DIRECT_BASE_URL = "https://api.mightpulse.com/v1/players";
+  // Local proxy fallback (when served via proxy.py)
+  const LOCAL_PROXY_URL = "/api/players";
+  
+  // Use local proxy if running on localhost with proxy.py, otherwise direct API endpoint
+  const IS_LOCAL_PROXY = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && (window.location.port === "8080" || window.location.port === "8081");
+  const BASE_URL   = IS_LOCAL_PROXY ? LOCAL_PROXY_URL : DIRECT_BASE_URL;
+
   const INCLUDES   = "base,heroes,ranks,gov_gear";
   const LS_KEY     = "mightpulse_api_key";
   const DEFAULT_KEY = "kss_5Zy1y70cJ2fx8h4ze-5gDSwUElbIzB0egRVWBF--6Qs";
@@ -442,15 +452,22 @@
     localStorage.setItem(LS_KEY, apiKeyInput.value.trim());
   });
 
-  /* ── Toast helper ──────────────────────────────────────────── */
+  /* ── Toast / Alert helper ──────────────────────────────────── */
   let toastTimer;
-  function showToast(msg, type = "error") {
+  function showToast(msg, type = "error", isHtml = false) {
     const el = document.getElementById("toast");
-    el.textContent = msg;
+    if (isHtml) {
+      el.innerHTML = msg;
+    } else {
+      el.textContent = msg;
+    }
     el.className = type === "warn" ? "warn" : "";
     el.style.display = "block";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.style.display = "none"; }, 6000);
+    // Don't auto-dismiss detailed CORS errors so user can read them
+    if (type !== "cors") {
+      toastTimer = setTimeout(() => { el.style.display = "none"; }, 10000);
+    }
   }
 
   /* ── Number formatter ──────────────────────────────────────── */
@@ -503,10 +520,25 @@
     try {
       const url = `${BASE_URL}/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
       const res = await fetch(url, {
-        headers: { "X-Api-Key": apiKey }
+        method: "GET",
+        headers: {
+          "X-Api-Key": apiKey,
+          "Accept": "application/json"
+        }
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get("content-type") || "";
+      let data;
+      if (contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`The server returned an HTML/non-JSON response (HTTP ${res.status}). If deployed on static hosting like GitHub Pages, the direct endpoint may be blocked or rerouted.`);
+        }
+      }
 
       if (!res.ok) {
         const msg = data?.message || data?.error || `HTTP ${res.status}`;
@@ -517,7 +549,19 @@
 
       renderResults(data);
     } catch (err) {
-      showToast(`Network error: ${err.message}`);
+      const msg = err.message || "";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("HTML/non-JSON")) {
+        showToast(
+          `<strong>⚠️ CORS / Browser Restriction Detected</strong>
+          The browser was prevented from fetching directly from <code>api.mightpulse.com</code>.<br><br>
+          • <strong>Why:</strong> The MightPulse API does not include <code>Access-Control-Allow-Origin</code> headers, causing browsers on static sites (like GitHub Pages) to reject direct API calls.<br>
+          • <strong>Solution:</strong> Run the included local proxy with <code>python proxy.py</code> and open <code>http://localhost:8081</code>, or use a CORS proxy browser extension.`,
+          "cors",
+          true
+        );
+      } else {
+        showToast(`Network error: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
