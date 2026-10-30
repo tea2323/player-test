@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tea Test Query</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --card:     #1c2330;
+      --border:   #30363d;
+      --accent:   #58a6ff;
+      --accent2:  #3fb950;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --danger:   #f85149;
+      --warn:     #d29922;
+      --radius:   10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), #a371f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: .4rem;
+      font-size: .9rem;
+    }
+
+    /* ── Search panel ────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      max-width: 700px;
+      margin: 0 auto 2rem;
+    }
+    .panel h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 1rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+    }
+    .field label {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .field-note {
+      font-size: .7rem;
+      color: var(--accent2);
+      margin-top: -.2rem;
+    }
+    input[type="text"], input[type="password"] {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: .95rem;
+      padding: .55rem .75rem;
+      width: 100%;
+      transition: border-color .2s;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .actions {
+      margin-top: 1.2rem;
+      display: flex;
+      gap: .75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      font-size: .9rem;
+      font-weight: 600;
+      padding: .6rem 1.4rem;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    #searchBtn {
+      background: var(--accent);
+      color: #0d1117;
+    }
+    #searchBtn:hover:not(:disabled) { opacity: .85; }
+
+    #clearBtn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    #clearBtn:hover { border-color: var(--danger); color: var(--danger); }
+
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast {
+      display: none;
+      background: var(--danger);
+      color: #fff;
+      border-radius: 6px;
+      padding: .55rem 1rem;
+      font-size: .85rem;
+      max-width: 700px;
+      margin: 0 auto 1.2rem;
+    }
+    #toast.warn { background: var(--warn); }
+
+    /* ── Results container ───────────────────────────────────── */
+    #results { max-width: 700px; margin: 0 auto; display: none; }
+
+    /* ── Player hero card ────────────────────────────────────── */
+    .player-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #a371f7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #0d1117;
+      flex-shrink: 0;
+    }
+    .player-info h3 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .player-info .sub {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-top: .25rem;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(88,166,255,.15);
+      border: 1px solid rgba(88,166,255,.35);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: .15rem .65rem;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-top: .4rem;
+    }
+
+    /* ── Metrics grid ────────────────────────────────────────── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: .85rem;
+      margin-bottom: 1rem;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+    }
+    .metric-card .label {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: .4rem;
+    }
+    .metric-card .value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .metric-card .value.accent  { color: var(--accent); }
+    .metric-card .value.green   { color: var(--accent2); }
+    .metric-card .value.purple  { color: #a371f7; }
+    .metric-card .value.warn    { color: var(--warn); }
+
+    /* ── Section titles ──────────────────────────────────────── */
+    .section-title {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin: 1.5rem 0 .75rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Ranks table ─────────────────────────────────────────── */
+    .ranks-table {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .ranks-table table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+    .ranks-table th {
+      background: var(--card);
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: .72rem;
+      letter-spacing: .06em;
+      padding: .65rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .ranks-table td {
+      padding: .6rem 1rem;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+    }
+    .ranks-table tr:last-child td { border-bottom: none; }
+    .ranks-table tr:hover td { background: rgba(255,255,255,.025); }
+
+    /* ── Raw JSON ────────────────────────────────────────────── */
+    .raw-json-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .raw-json-header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: .65rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .raw-json-header span {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    #copyBtn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .75rem;
+      padding: .25rem .7rem;
+    }
+    #copyBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+    pre#rawJson {
+      background: transparent;
+      color: #79c0ff;
+      font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+      font-size: .8rem;
+      line-height: 1.6;
+      padding: 1rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    /* ── JSON syntax highlighting ────────────────────────────── */
+    .json-key    { color: #79c0ff; }
+    .json-str    { color: #a5d6ff; }
+    .json-num    { color: #79c0ff; }
+    .json-bool   { color: #ff7b72; }
+    .json-null   { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Tea Test Query</h1>
+</header>
+
+<div id="toast"></div>
+
+<!-- ── Search Panel ──────────────────────────────────────────── -->
+<div class="panel">
+  <h2>🔍 Player Lookup</h2>
+  <div class="form-grid">
+    <div class="field">
+      <label for="playerIdInput">Governor / Player ID</label>
+      <input type="text" id="playerIdInput" placeholder="e.g. 370843889" value="370843889" />
+    </div>
+    <div class="field">
+      <label for="apiKeyInput">API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="kss_..." />
+      <span class="field-note">💾 Auto-saved to browser storage</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="searchBtn" onclick="fetchPlayer()">Search</button>
+    <button id="clearBtn" onclick="clearResults()">Clear</button>
+    <div class="spinner" id="spinner"></div>
+  </div>
+</div>
+
+<!-- ── Results ────────────────────────────────────────────────── -->
+<div id="results">
+
+  <!-- Hero card -->
+  <div class="player-hero" id="heroCard">
+    <div class="avatar" id="avatarEl">?</div>
+    <div class="player-info">
+      <h3 id="nickEl">—</h3>
+      <div class="sub" id="subEl">—</div>
+      <span class="badge" id="allianceEl"></span>
+    </div>
+  </div>
+
+  <!-- Key metrics -->
+  <div class="metrics-grid" id="metricsGrid"></div>
+
+  <!-- Kills breakdown -->
+  <div id="killsSection" style="display:none">
+    <div class="section-title">⚔️ Kills</div>
+    <div class="metrics-grid" id="killsGrid"></div>
+  </div>
+
+  <!-- Ranks -->
+  <div id="ranksSection" style="display:none">
+    <div class="section-title">🏆 Ranks</div>
+    <div class="ranks-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Kingdom Rank</th>
+            <th>All-time Rank</th>
+            <th>Server Rank</th>
+          </tr>
+        </thead>
+        <tbody id="ranksTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Raw JSON -->
+  <div class="section-title">📄 Raw Response</div>
+  <div class="raw-json-wrapper">
+    <div class="raw-json-header">
+      <span>JSON</span>
+      <button id="copyBtn" onclick="copyJson()">Copy</button>
+    </div>
+    <pre id="rawJson"></pre>
+  </div>
+
+</div>
+
+<script>
+  /* ── Constants ─────────────────────────────────────────────── */
+  // Requests go to the local proxy (/api/*) which forwards them server-side,
+  // bypassing the MightPulse API's lack of CORS headers.
+  const BASE_URL   = "/api/players";
+  const INCLUDES   = "base,heroes,ranks,gov_gear";
+  const LS_KEY     = "mightpulse_api_key";
+  const DEFAULT_KEY = "kss_5Zy1y70cJ2fx8h4ze-5gDSwUElbIzB0egRVWBF--6Qs";
+
+  /* ── Init: restore API key ─────────────────────────────────── */
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  apiKeyInput.value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
+  apiKeyInput.addEventListener("input", () => {
+    localStorage.setItem(LS_KEY, apiKeyInput.value.trim());
+  });
+
+  /* ── Also save when user leaves the field ─────────────────── */
+  apiKeyInput.addEventListener("blur", () => {
+    localStorage.setItem(LS_KEY, apiKeyInput.value.trim());
+  });
+
+  /* ── Toast helper ──────────────────────────────────────────── */
+  let toastTimer;
+  function showToast(msg, type = "error") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = type === "warn" ? "warn" : "";
+    el.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.display = "none"; }, 6000);
+  }
+
+  /* ── Number formatter ──────────────────────────────────────── */
+  function fmt(n) {
+    if (n == null) return "—";
+    const num = Number(n);
+    if (isNaN(num)) return n;
+    if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + "B";
+    if (num >= 1_000_000)     return (num / 1_000_000).toFixed(2) + "M";
+    if (num >= 1_000)         return (num / 1_000).toFixed(1) + "K";
+    return num.toLocaleString();
+  }
+
+  /* ── Metric card builder ───────────────────────────────────── */
+  function metricCard(label, value, colorClass = "") {
+    return `<div class="metric-card">
+      <div class="label">${label}</div>
+      <div class="value ${colorClass}">${value}</div>
+    </div>`;
+  }
+
+  /* ── JSON syntax highlighter ───────────────────────────────── */
+  function highlight(json) {
+    return json
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g, m => {
+        if (/^"/.test(m)) return /:$/.test(m)
+          ? `<span class="json-key">${m}</span>`
+          : `<span class="json-str">${m}</span>`;
+        if (/true|false/.test(m)) return `<span class="json-bool">${m}</span>`;
+        if (/null/.test(m))       return `<span class="json-null">${m}</span>`;
+        return `<span class="json-num">${m}</span>`;
+      });
+  }
+
+  /* ── Main fetch ────────────────────────────────────────────── */
+  async function fetchPlayer() {
+    const playerId = document.getElementById("playerIdInput").value.trim();
+    const apiKey   = apiKeyInput.value.trim();
+
+    if (!playerId) { showToast("Please enter a Player / Governor ID."); return; }
+    if (!apiKey)   { showToast("Please enter your API Key."); return; }
+
+    // Save key
+    localStorage.setItem(LS_KEY, apiKey);
+
+    setLoading(true);
+    document.getElementById("toast").style.display = "none";
+
+    try {
+      const url = `${BASE_URL}/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
+      const res = await fetch(url, {
+        headers: { "X-Api-Key": apiKey }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.message || data?.error || `HTTP ${res.status}`;
+        showToast(`API Error ${res.status}: ${msg}`);
+        setLoading(false);
+        return;
+      }
+
+      renderResults(data);
+    } catch (err) {
+      showToast(`Network error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── Render results ────────────────────────────────────────── */
+  function renderResults(data) {
+    // Real API shape: { ok, uid, governor_id, player: {...}, heroes: [...], ranks: {...}, gov_gear: {...} }
+    const p      = data.player  ?? data.data ?? data;
+    const ranks  = data.ranks   ?? {};
+    const heroes = data.heroes  ?? [];
+
+    /* ── Avatar & hero card ─────────────────────────────────── */
+    const nick  = p.nick_name ?? p.nickname ?? p.name ?? "Unknown";
+    const kid   = p.kid ?? "—";
+    const govId = p.governor_id ?? p.fid ?? data.governor_id ?? "—";
+    const tc    = p.town_center_level ?? null;
+
+    document.getElementById("nickEl").textContent = nick;
+    document.getElementById("avatarEl").textContent = nick.charAt(0).toUpperCase();
+    document.getElementById("subEl").textContent =
+      `ID: ${govId} · Kingdom: ${kid}` + (tc ? ` · TC${tc}` : "");
+
+    const alliance = p.alliance;
+    const allianceEl = document.getElementById("allianceEl");
+    if (alliance?.name || alliance?.abbr) {
+      const tag = alliance.abbr ? `[${alliance.abbr}] ` : "";
+      allianceEl.textContent = "🏰 " + tag + (alliance.name ?? "");
+      allianceEl.style.display = "inline-block";
+    } else {
+      allianceEl.style.display = "none";
+    }
+
+    /* ── Key metrics ────────────────────────────────────────── */
+    const power       = p.power       ?? null;
+    const totalKills  = p.kills       ?? null;
+    const vip         = p.vip         ?? null;
+    const alliancePow = alliance?.power ?? null;
+
+    const cards = [
+      { label: "Power",          value: fmt(power),       color: "accent"  },
+      { label: "Kingdom",        value: kid,              color: ""        },
+      { label: "Kills",          value: fmt(totalKills),  color: "warn"    },
+      { label: "VIP Level",      value: vip ?? "—",       color: "purple"  },
+      { label: "Alliance Power", value: fmt(alliancePow), color: "green"   },
+      { label: "Heroes",         value: heroes.length > 0 ? heroes.length : "—", color: "" },
+    ];
+
+    document.getElementById("metricsGrid").innerHTML =
+      cards.map(c => metricCard(c.label, c.value, c.color)).join("");
+
+    /* ── Kills breakdown (not split by tier in API) ─────────── */
+    document.getElementById("killsSection").style.display = "none";
+
+    /* ── Ranks ──────────────────────────────────────────────── */
+    // Real ranks shape: { power, power_rank, kills, kills_rank,
+    //   town_center_level, town_center_rank, migrant_score, migrant_rank,
+    //   mystic_trial, mystic_rank, leaderboards: [{name, value, kingdom_rank}] }
+    const ranksSec   = document.getElementById("ranksSection");
+    const ranksTbody = document.getElementById("ranksTbody");
+
+    const staticRows = [
+      { cat: "Power",        value: fmt(ranks.power),         rank: ranks.power_rank       },
+      { cat: "Kills",        value: fmt(ranks.kills),         rank: ranks.kills_rank       },
+      { cat: "Town Center",  value: ranks.town_center_level,  rank: ranks.town_center_rank },
+      { cat: "Migrant",      value: fmt(ranks.migrant_score), rank: ranks.migrant_rank     },
+      { cat: "Mystic Trial", value: fmt(ranks.mystic_trial),  rank: ranks.mystic_rank      },
+    ].filter(r => r.value != null && r.value !== "—");
+
+    const boards = Array.isArray(ranks.leaderboards) ? ranks.leaderboards : [];
+
+    if (staticRows.length || boards.length) {
+      const rowHtml =
+        staticRows.map(r =>
+          `<tr><td>${r.cat}</td><td>${r.rank ?? "—"}</td><td>${r.value}</td><td>—</td></tr>`
+        ).join("") +
+        boards.map(b =>
+          `<tr><td>${b.name ?? "—"}</td><td>${b.kingdom_rank ?? "—"}</td><td>${fmt(b.value)}</td><td>—</td></tr>`
+        ).join("");
+      ranksTbody.innerHTML = rowHtml;
+      ranksSec.style.display = "block";
+    } else {
+      ranksSec.style.display = "none";
+    }
+
+    /* ── Raw JSON ───────────────────────────────────────────── */
+    const pretty = JSON.stringify(data, null, 2);
+    document.getElementById("rawJson").innerHTML = highlight(pretty);
+    window._rawJson = pretty;
+
+    /* ── Show results block ─────────────────────────────────── */
+    document.getElementById("results").style.display = "block";
+    document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /* ── Loading state ─────────────────────────────────────────── */
+  function setLoading(on) {
+    document.getElementById("searchBtn").disabled = on;
+    document.getElementById("spinner").style.display = on ? "inline-block" : "none";
+  }
+
+  /* ── Clear ─────────────────────────────────────────────────── */
+  function clearResults() {
+    document.getElementById("results").style.display = "none";
+    document.getElementById("toast").style.display = "none";
+  }
+
+  /* ── Copy raw JSON ─────────────────────────────────────────── */
+  function copyJson() {
+    if (!window._rawJson) return;
+    navigator.clipboard.writeText(window._rawJson).then(() => {
+      const btn = document.getElementById("copyBtn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    });
+  }
+
+  /* ── Enter key shortcut ────────────────────────────────────── */
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter") fetchPlayer();
+  });
+</script>
+</body>
+</html>
