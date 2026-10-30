@@ -509,13 +509,14 @@
     document.getElementById("toast").style.display = "none";
 
     try {
-      const targetUrl = `https://api.mightpulse.com/v1/players/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      // Netlify proxy rewrite forwards /api/* -> https://api.mightpulse.com/v1/*
+      const url = `/api/players/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
 
-      const res = await fetch(proxyUrl, {
+      const res = await fetch(url, {
         method: 'GET',
         headers: {
-          'X-Api-Key': apiKey
+          'X-Api-Key': apiKey,
+          'Accept': 'application/json'
         }
       });
 
