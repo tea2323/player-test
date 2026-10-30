@@ -510,27 +510,25 @@
 
     try {
       const targetUrl = `https://api.mightpulse.com/v1/players/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
       const res = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
-          'X-Api-Key': apiKey,
-          'Content-Type': 'application/json'
+          'X-Api-Key': apiKey
         }
       });
 
-      const contentType = res.headers.get("content-type") || "";
+      // Safely read response text first so non-JSON/HTML payloads don't throw syntax errors
+      const rawText = await res.text();
       let data;
-      if (contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error(`The proxy returned a non-JSON response (HTTP ${res.status}).`);
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        if (rawText.trim().startsWith('<') || rawText.includes('<!DOCTYPE')) {
+          throw new Error(`Proxy returned an HTML error page (HTTP ${res.status}). The upstream server or proxy may be blocking cross-origin requests.`);
         }
+        throw new Error(`Invalid JSON received (HTTP ${res.status}): ${rawText.slice(0, 150)}`);
       }
 
       if (!res.ok) {
