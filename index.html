@@ -427,15 +427,6 @@
 
 <script>
   /* ── Constants ─────────────────────────────────────────────── */
-  // Direct MightPulse API endpoint
-  const DIRECT_BASE_URL = "https://api.mightpulse.com/v1/players";
-  // Local proxy fallback (when served via proxy.py)
-  const LOCAL_PROXY_URL = "/api/players";
-  
-  // Use local proxy if running on localhost with proxy.py, otherwise direct API endpoint
-  const IS_LOCAL_PROXY = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && (window.location.port === "8080" || window.location.port === "8081");
-  const BASE_URL   = IS_LOCAL_PROXY ? LOCAL_PROXY_URL : DIRECT_BASE_URL;
-
   const INCLUDES   = "base,heroes,ranks,gov_gear";
   const LS_KEY     = "mightpulse_api_key";
   const DEFAULT_KEY = "kss_5Zy1y70cJ2fx8h4ze-5gDSwUElbIzB0egRVWBF--6Qs";
@@ -519,12 +510,9 @@
 
     try {
       const targetUrl = `https://api.mightpulse.com/v1/players/${encodeURIComponent(playerId)}?include=${INCLUDES}`;
-      // On localhost with proxy.py use local proxy, otherwise route through public CORS proxy
-      const fetchUrl = IS_LOCAL_PROXY
-        ? `${LOCAL_PROXY_URL}/${encodeURIComponent(playerId)}?include=${INCLUDES}`
-        : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-      const res = await fetch(fetchUrl, {
+      const res = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'X-Api-Key': apiKey,
@@ -541,7 +529,7 @@
         try {
           data = JSON.parse(text);
         } catch {
-          throw new Error(`The server returned an HTML/non-JSON response (HTTP ${res.status}). If deployed on static hosting like GitHub Pages, the direct endpoint may be blocked or rerouted.`);
+          throw new Error(`The proxy returned a non-JSON response (HTTP ${res.status}).`);
         }
       }
 
@@ -555,18 +543,7 @@
       renderResults(data);
     } catch (err) {
       const msg = err.message || "";
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("HTML/non-JSON")) {
-        showToast(
-          `<strong>⚠️ CORS / Browser Restriction Detected</strong>
-          The browser was prevented from fetching directly from <code>api.mightpulse.com</code>.<br><br>
-          • <strong>Why:</strong> The MightPulse API does not include <code>Access-Control-Allow-Origin</code> headers, causing browsers on static sites (like GitHub Pages) to reject direct API calls.<br>
-          • <strong>Solution:</strong> Run the included local proxy with <code>python proxy.py</code> and open <code>http://localhost:8081</code>, or use a CORS proxy browser extension.`,
-          "cors",
-          true
-        );
-      } else {
-        showToast(`Network error: ${msg}`);
-      }
+      showToast(`Request Error: ${msg}`);
     } finally {
       setLoading(false);
     }
